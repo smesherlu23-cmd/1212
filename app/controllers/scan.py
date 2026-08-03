@@ -11,15 +11,12 @@ from ..core import queries
 from ..core.text import plu_apps
 from ..infra import log
 from ..ui import colors as C
+from ..platform import discovery
 
 DISCOVERY_TTL = 120.0
 
 
 class ScanController:
-    """Owns discovery scanning and the "add programs" flow: finding installed
-    programs, the manual-path/file-picker entry points, and committing or
-    deferring the chosen rows into the library.
-    """
 
     def __init__(self, ui):
         self.ui = ui
@@ -60,7 +57,6 @@ class ScanController:
             self._scan_errors = []
 
         def work():
-            from ..platform import discovery
             report = {}
             try:
                 if force:
@@ -110,7 +106,6 @@ class ScanController:
         if not os.path.isfile(raw):
             self.ui.toast.error("Файл не найден", detail=raw)
             return
-        from ..platform import discovery
         name = Path(raw).stem.replace("-", " ").replace("_", " ").strip()
         item = {"name": (name[:1].upper() + name[1:]) if name else "Программа",
                 "path": raw, "source": "manual",
@@ -213,7 +208,6 @@ class ScanController:
     def _on_file_picked(self, e):
         if not e.files:
             return
-        from ..platform import discovery
         picked = e.files[0]
         path = picked.path or picked.name
         target = getattr(self.ui, "_relocating", None)
@@ -257,8 +251,7 @@ class ScanController:
         self.ui.refresh()
 
     def backfill_icons_async(self):
-        def work():
-            from ..platform import discovery
+        def work():            
             try:
                 if discovery.backfill_icons(self.store, self.ui.icon_cache_dir()):
                     self.ui._on_library_changed()
@@ -271,8 +264,7 @@ class ScanController:
             self.ui.toast.show("Смотрю, что установлено", icon=ft.Icons.SEARCH,
                                icon_color=C.MUTED)
 
-        def work():
-            from ..platform import discovery
+        def work():            
             try:
                 cache = self.ui.icon_cache_dir()
                 if not silent:

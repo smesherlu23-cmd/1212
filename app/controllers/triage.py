@@ -8,10 +8,6 @@ from ..ui import colors as C
 
 
 class TriageController:
-    """Owns the inbox triage flow: placing a discovered program into a
-    category, skipping or dropping it, and the undo for each of those.
-    """
-
     def __init__(self, ui):
         self.ui = ui
         self.store = ui.store

@@ -9,6 +9,7 @@ import flet as ft
 
 from . import colors as C
 from . import menus
+from . import dialogs
 from . import widgets as Wg
 from .format import T
 from .images import img_b64, is_launcher_art
@@ -312,10 +313,6 @@ class CenturioUI:
         self.inspector_overlay.content = inspector if floating else None
 
     def _refresh_palette_only(self):
-        """Cheap refresh for palette-only interactions (typing, hover, arrow
-        keys): skips the header/rail/sidebar/content/inspector rebuild and the
-        accelerator recompute, none of which depend on palette state.
-        """
         with self._refresh_lock:
             self._snapshot = self.store.state()
             try:
@@ -340,7 +337,7 @@ class CenturioUI:
                             source_glyph=_source_glyph(app.get("source")))
 
     def _sync_search_box(self, matches: int = 0):
-        from ..core.hotkeys import format_accel
+        from .hotkeys import format_accel
         active = self.view.palette_open
         room = self._window_width() - HEADER_SIDES_W
         self.search_box.width = max(C.SEARCH_MIN_W, min(C.SEARCH_W, room))
@@ -733,8 +730,7 @@ class CenturioUI:
             padding=ft.padding.only(22, 16, 22, 10),
         )
 
-    def _build_content(self):
-        from . import dialogs
+    def _build_content(self):        
         screen = self.view.screen
         if screen == "add":
             return [dialogs.build_add_screen(self)]
@@ -1340,7 +1336,6 @@ class CenturioUI:
         return next((r["app"] for r in rows if r["kind"] == "app"), None)
 
     def _render_palette(self):
-        from . import dialogs
         if not self.view.palette_open or self.view.onboarding:
             self._palette_count = 0
             self.palette_layer.visible = False
@@ -1355,8 +1350,7 @@ class CenturioUI:
         self.palette_card.offset = ft.Offset(0, 0)
         self.palette_layer.visible = True
 
-    def _render_bulk_bar(self):
-        from . import dialogs
+    def _render_bulk_bar(self):        
         showing = bool(self.view.select_mode and self.view.sel)
         self.toast.lift(showing)
         if not showing:
@@ -2459,7 +2453,7 @@ class CenturioUI:
         self.set_setting("onboarded", True)
 
     def onboarding_items(self):
-        from ..platform import discovery
+        from . import discovery
         found = self.cached_discovery()
         if found is None:
             return []
@@ -2497,7 +2491,6 @@ class CenturioUI:
         self._backfill_icons_async()
 
     def _render_popover(self):
-        from . import dialogs
         cat_id = self.view.popover
         cat = next((c for c in self.categories() if c["id"] == cat_id), None)
         if cat is None:
@@ -2513,7 +2506,6 @@ class CenturioUI:
         self.popover_layer.visible = True
 
     def _render_onboarding(self):
-        from . import dialogs
         if not self.view.onboarding:
             self.onboarding_layer.visible = False
             self.onboarding_layer.content = None
