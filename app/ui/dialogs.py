@@ -1181,7 +1181,7 @@ def build_onboarding(ui):
 
 
 def tray_items(store) -> list[dict]:
-    from .hotkeys import quick_accels
+    from ..core.hotkeys import quick_accels
     apps = store.state()["apps"]
     accels = quick_accels(apps)
     out = []

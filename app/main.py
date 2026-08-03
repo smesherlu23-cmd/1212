@@ -192,7 +192,7 @@ def main(page: ft.Page):
     }
 
     def tray_menu():
-        from app import dialogs
+        from app.ui import dialogs
         items = [(item["label"], (lambda aid=item["id"]: on_hotkey(aid)))
                  for item in dialogs.tray_items(store)]
         return items, dialogs.library_summary(store)
@@ -266,7 +266,7 @@ def main(page: ft.Page):
 
     def _backfill():
         try:
-            from app import discovery
+            from app.platform import discovery
             cache = str(app_paths_dir(store))
             schema = store.state()["settings"].get("icon_schema", 0)
             refresh = schema < discovery.ICON_SCHEMA

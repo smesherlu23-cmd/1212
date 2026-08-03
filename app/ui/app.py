@@ -8,8 +8,8 @@ from pathlib import Path
 import flet as ft
 
 from . import colors as C
-from . import menus
 from . import dialogs
+from . import menus
 from . import widgets as Wg
 from .format import T
 from .images import img_b64, is_launcher_art
@@ -25,6 +25,7 @@ from ..core.hotkeys import free_quick_slot, is_reserved, quick_accels, set_accel
 from ..core.store import Store
 from ..core.text import (plu_apps, plu_hits, plu_programs, plu_windows,
                          short_ago, time_ago)
+from ..core.undo import UndoStack
 from ..core.view_state import ViewState
 from ..infra import log
 from ..platform import windows as W
@@ -55,6 +56,7 @@ class CenturioUI:
 
         self.toast = ToastHost(page)
         self.menu = MenuHost(page, on_dismiss=self._on_menu_dismissed)
+        self.undo_stack = UndoStack()
         self.set_ops = SetsController(self)
         self.scan = ScanController(self)
         self.triage = TriageController(self)
@@ -325,6 +327,25 @@ class CenturioUI:
                 self._snapshot = None
             self.page.update()
 
+    def _refresh_selection_only(self):
+        """Cheap refresh for selection interactions (tile click/range/toggle,
+        entering or leaving select mode, closing the inspector): these only
+        touch view state, so this skips the header/rail rebuild and the
+        accelerator recompute. The sidebar, toolbar, content grid and
+        inspector still rebuild — they legitimately show selection-derived
+        state (the "N selected" counter, the set drop-hint, tile borders, the
+        inspector panel) — so this does not skip those.
+        """
+        with self._refresh_lock:
+            self._snapshot = self.store.state()
+            try:
+                self._refresh_library(content_only=True)
+                self.body.content = self.library_body
+                self._render_bulk_bar()
+            finally:
+                self._snapshot = None
+            self.page.update()
+
     def cat_of(self, app) -> dict | None:
         cid = app.get("category_id")
         return next((c for c in self.categories() if c["id"] == cid), None)
@@ -337,7 +358,7 @@ class CenturioUI:
                             source_glyph=_source_glyph(app.get("source")))
 
     def _sync_search_box(self, matches: int = 0):
-        from .hotkeys import format_accel
+        from ..core.hotkeys import format_accel
         active = self.view.palette_open
         room = self._window_width() - HEADER_SIDES_W
         self.search_box.width = max(C.SEARCH_MIN_W, min(C.SEARCH_W, room))
@@ -730,7 +751,7 @@ class CenturioUI:
             padding=ft.padding.only(22, 16, 22, 10),
         )
 
-    def _build_content(self):        
+    def _build_content(self):
         screen = self.view.screen
         if screen == "add":
             return [dialogs.build_add_screen(self)]
@@ -1350,7 +1371,7 @@ class CenturioUI:
         self.palette_card.offset = ft.Offset(0, 0)
         self.palette_layer.visible = True
 
-    def _render_bulk_bar(self):        
+    def _render_bulk_bar(self):
         showing = bool(self.view.select_mode and self.view.sel)
         self.toast.lift(showing)
         if not showing:
@@ -1815,14 +1836,14 @@ class CenturioUI:
             self.view.leave_select_mode()
         else:
             self.view.enter_select_mode()
-        self.refresh()
+        self._refresh_selection_only()
 
     def _select_all_visible(self):
         flat = self._flat_apps()
         if not self.view.select_mode:
             self.view.enter_select_mode()
         self.view.select_many([a["id"] for a in flat])
-        self.refresh()
+        self._refresh_selection_only()
 
     def _tile_tap(self, app_id, ids, e=None):
         ctrl = bool(getattr(e, "ctrl", False)) if e is not None else False
@@ -1836,29 +1857,29 @@ class CenturioUI:
             self.view.select_range(ids, app_id)
         else:
             self.view.toggle_selection(app_id)
-        self.refresh()
+        self._refresh_selection_only()
 
     def _toggle_pick(self, app_id):
         self.view.toggle_selection(app_id)
-        self.refresh()
+        self._refresh_selection_only()
 
     def _range_to(self, app_id):
         self.view.select_range([a["id"] for a in self._flat_apps()], app_id)
-        self.refresh()
+        self._refresh_selection_only()
 
     def _select_tile(self, app_id):
         self.view.select_one(app_id)
         app = next((a for a in self.apps() if a["id"] == app_id), None)
         self.view.adv = bool(app and (app.get("args") or app.get("run_as_admin")
                                       or app.get("working_dir")))
-        self.refresh()
+        self._refresh_selection_only()
 
     def _drag_ids(self, app_id):
         return list(self.view.sel) if app_id in self.view.sel else [app_id]
 
     def _close_inspector(self):
         self.view.close_inspector()
-        self.refresh()
+        self._refresh_selection_only()
 
     def _toggle_adv(self):
         self.view.adv = not self.view.adv
@@ -2004,10 +2025,11 @@ class CenturioUI:
         if not touched:
             return
         self.view.clear_selection()
+        self.undo_stack.push(lambda: self._hide_apps(ids, not hidden))
         text = (f"Скрыто {touched}" if hidden else f"Снова видно: {touched}")
         self.toast.show(text, icon=ft.Icons.VISIBILITY_OFF if hidden else ft.Icons.VISIBILITY,
                         icon_color=C.MUTED,
-                        action=lambda: self._hide_apps(ids, not hidden),
+                        action=self.undo_stack.undo,
                         action_label="Отменить")
         self._on_library_changed()
 
@@ -2086,14 +2108,15 @@ class CenturioUI:
 
     def _bulk_favorite(self, ids):
         before = [i for i in ids if not (self.store.get_app(i) or {}).get("favorite")]
-        self.store.update_apps(ids, {"favorite": True})
-        self.toast.show(f"В избранном: {len(ids)}", icon=ft.Icons.STAR, icon_color=C.STAR,
-                        action=lambda: self._undo_favorite(before),
-                        action_label="Отменить")
-        self.refresh()
 
-    def _undo_favorite(self, ids):
-        self.store.update_apps(ids, {"favorite": False})
+        def undo():
+            self.store.update_apps(before, {"favorite": False})
+            self.refresh()
+        self.store.update_apps(ids, {"favorite": True})
+        self.undo_stack.push(undo)
+        self.toast.show(f"В избранном: {len(ids)}", icon=ft.Icons.STAR, icon_color=C.STAR,
+                        action=self.undo_stack.undo,
+                        action_label="Отменить")
         self.refresh()
 
     def _new_set(self):
@@ -2108,17 +2131,8 @@ class CenturioUI:
     def _remove_from_set(self, set_id, app_id):
         self.set_ops.remove_from_set(set_id, app_id)
 
-    def _restore_set_members(self, set_id, members):
-        self.set_ops.restore_set_members(set_id, members)
-
-    def _undo_set(self, set_id):
-        self.set_ops.undo_set(set_id)
-
     def _remove_set(self, set_id):
         self.set_ops.remove_set(set_id)
-
-    def _restore_set(self, rec):
-        self.set_ops.restore_set(rec)
 
     def rename_set(self, set_id, name):
         self.set_ops.rename_set(set_id, name)
@@ -2169,14 +2183,15 @@ class CenturioUI:
         if not gone:
             return
         self.view.close_inspector()
+
+        def undo():
+            self.store.restore_apps(gone)
+            self._on_library_changed()
+        self.undo_stack.push(undo)
         text = (f"{gone[0]['name']} убран из библиотеки" if len(gone) == 1
                 else f"Убрано {len(gone)} {plu_apps(len(gone))}")
         self.toast.show(text, icon=ft.Icons.DELETE_OUTLINE, icon_color=C.MUTED,
-                        action=lambda: self._restore_apps(gone), action_label="Вернуть")
-        self._on_library_changed()
-
-    def _restore_apps(self, records):
-        self.store.restore_apps(records)
+                        action=self.undo_stack.undo, action_label="Вернуть")
         self._on_library_changed()
 
     def _add_category(self):
@@ -2261,15 +2276,16 @@ class CenturioUI:
             return
         self.view.close_popover()
         moved = len(undo["apps"])
+
+        def do_undo():
+            self.store.restore_category(undo)
+            self._on_library_changed()
+        self.undo_stack.push(do_undo)
         text = f"Категория «{cat['name']}» удалена" if cat else "Категория удалена"
         if moved:
             text += f", {moved} {plu_apps(moved)} перенесено"
         self.toast.show(text, icon=ft.Icons.DELETE_OUTLINE, icon_color=C.MUTED,
-                        action=lambda: self._restore_category(undo), action_label="Вернуть")
-        self._on_library_changed()
-
-    def _restore_category(self, undo):
-        self.store.restore_category(undo)
+                        action=self.undo_stack.undo, action_label="Вернуть")
         self._on_library_changed()
 
     def _open_add(self):
@@ -2453,7 +2469,7 @@ class CenturioUI:
         self.set_setting("onboarded", True)
 
     def onboarding_items(self):
-        from . import discovery
+        from ..platform import discovery
         found = self.cached_discovery()
         if found is None:
             return []
