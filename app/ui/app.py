@@ -329,6 +329,25 @@ class CenturioUI:
                 self._snapshot = None
             self.page.update()
 
+    def _refresh_selection_only(self):
+        """Cheap refresh for selection interactions (tile click/range/toggle,
+        entering or leaving select mode, closing the inspector): these only
+        touch view state, so this skips the header/rail rebuild and the
+        accelerator recompute. The sidebar, toolbar, content grid and
+        inspector still rebuild — they legitimately show selection-derived
+        state (the "N selected" counter, the set drop-hint, tile borders, the
+        inspector panel) — so this does not skip those.
+        """
+        with self._refresh_lock:
+            self._snapshot = self.store.state()
+            try:
+                self._refresh_library(content_only=True)
+                self.body.content = self.library_body
+                self._render_bulk_bar()
+            finally:
+                self._snapshot = None
+            self.page.update()
+
     def cat_of(self, app) -> dict | None:
         cid = app.get("category_id")
         return next((c for c in self.categories() if c["id"] == cid), None)
@@ -1819,14 +1838,14 @@ class CenturioUI:
             self.view.leave_select_mode()
         else:
             self.view.enter_select_mode()
-        self.refresh()
+        self._refresh_selection_only()
 
     def _select_all_visible(self):
         flat = self._flat_apps()
         if not self.view.select_mode:
             self.view.enter_select_mode()
         self.view.select_many([a["id"] for a in flat])
-        self.refresh()
+        self._refresh_selection_only()
 
     def _tile_tap(self, app_id, ids, e=None):
         ctrl = bool(getattr(e, "ctrl", False)) if e is not None else False
@@ -1840,29 +1859,29 @@ class CenturioUI:
             self.view.select_range(ids, app_id)
         else:
             self.view.toggle_selection(app_id)
-        self.refresh()
+        self._refresh_selection_only()
 
     def _toggle_pick(self, app_id):
         self.view.toggle_selection(app_id)
-        self.refresh()
+        self._refresh_selection_only()
 
     def _range_to(self, app_id):
         self.view.select_range([a["id"] for a in self._flat_apps()], app_id)
-        self.refresh()
+        self._refresh_selection_only()
 
     def _select_tile(self, app_id):
         self.view.select_one(app_id)
         app = next((a for a in self.apps() if a["id"] == app_id), None)
         self.view.adv = bool(app and (app.get("args") or app.get("run_as_admin")
                                       or app.get("working_dir")))
-        self.refresh()
+        self._refresh_selection_only()
 
     def _drag_ids(self, app_id):
         return list(self.view.sel) if app_id in self.view.sel else [app_id]
 
     def _close_inspector(self):
         self.view.close_inspector()
-        self.refresh()
+        self._refresh_selection_only()
 
     def _toggle_adv(self):
         self.view.adv = not self.view.adv
