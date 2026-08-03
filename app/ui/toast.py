@@ -5,8 +5,8 @@ import threading
 import flet as ft
 
 from . import colors as C
-from .format import T
 from ..infra import log
+from .format import T
 
 PLAIN_SECONDS = 2.6
 UNDO_SECONDS = 8

@@ -9,9 +9,9 @@ import time
 import uuid
 from pathlib import Path
 
+from . import layout as L
 from ..infra import log
 from ..infra.debounce import Debounce
-from . import layout as L
 
 DEFAULT_CATEGORIES = [
     {"id": "work", "name": "Работа", "icon": "work", "color": "#ffffff", "order": 0},

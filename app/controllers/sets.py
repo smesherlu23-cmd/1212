@@ -14,14 +14,6 @@ from ..ui import colors as C
 
 
 class SetsController:
-    """Owns the lifecycle of "sets" (наборы): launching them together,
-    arranging/capturing their window layout, and CRUD on their membership.
-
-    Depends on the host CenturioUI for shared state (toast, view, running
-    apps) and cross-cutting hooks (refresh, _after_launch, _on_library_changed)
-    rather than duplicating them.
-    """
-
     def __init__(self, ui):
         self.ui = ui
         self.store = ui.store

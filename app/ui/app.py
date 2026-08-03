@@ -313,10 +313,6 @@ class CenturioUI:
         self.inspector_overlay.content = inspector if floating else None
 
     def _refresh_palette_only(self):
-        """Cheap refresh for palette-only interactions (typing, hover, arrow
-        keys): skips the header/rail/sidebar/content/inspector rebuild and the
-        accelerator recompute, none of which depend on palette state.
-        """
         with self._refresh_lock:
             self._snapshot = self.store.state()
             try:

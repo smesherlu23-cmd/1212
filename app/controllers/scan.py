@@ -17,10 +17,6 @@ DISCOVERY_TTL = 120.0
 
 
 class ScanController:
-    """Owns discovery scanning and the "add programs" flow: finding installed
-    programs, the manual-path/file-picker entry points, and committing or
-    deferring the chosen rows into the library.
-    """
 
     def __init__(self, ui):
         self.ui = ui
