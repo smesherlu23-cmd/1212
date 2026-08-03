@@ -7,7 +7,7 @@ from collections import OrderedDict
 
 import flet as ft
 
-from .store import hue_from_string
+from ..core.store import hue_from_string
 
 _RASTER_EXT = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
 MIN_ART_PX = 160

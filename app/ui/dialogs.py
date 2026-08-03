@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import flet as ft
 
-from . import __version__
 from . import colors as C
-from . import layout as L
-from . import queries
 from . import widgets as Wg
-from .format import ICON_PACK, T, cat_icon, plu_apps, plu_programs
-from .hotkeys import format_accel
+from .format import ICON_PACK, T, cat_icon
+from .. import __version__
+from ..core import layout as L
+from ..core import queries
+from ..core.hotkeys import format_accel
+from ..core.text import plu_apps, plu_programs
 
 ACCENT_NAMES = dict(zip(C.ACCENT_CHOICES, ("Белый", "Синий", "Бирюзовый", "Оранжевый")))
 
@@ -1180,7 +1181,7 @@ def build_onboarding(ui):
 
 
 def tray_items(store) -> list[dict]:
-    from .hotkeys import quick_accels
+    from ..core.hotkeys import quick_accels
     apps = store.state()["apps"]
     accels = quick_accels(apps)
     out = []

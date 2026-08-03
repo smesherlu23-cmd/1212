@@ -17,9 +17,9 @@ except Exception:            # проверяется отдельно, тест
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.store import Store, hue_from_string          # noqa: E402
-from app import colors as C                           # noqa: E402
-from app import iconify                               # noqa: E402
+from app.core.store import Store, hue_from_string          # noqa: E402
+from app.ui import colors as C                           # noqa: E402
+from app.ui import iconify                               # noqa: E402
 
 _passed = 0
 _failed = 0
@@ -217,7 +217,7 @@ def test_store_set_layout():
     """Набор версии 3: порядок запуска, места окон, пауза, монитор."""
     import json
 
-    from app import layout as L
+    from app.core import layout as L
 
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, "data.json")
@@ -304,7 +304,7 @@ def test_store_set_layout():
 
 def test_layout_presets():
     """Раскладка окон — доли экрана, а не пиксели: переживает смену монитора."""
-    from app import layout as L
+    from app.core import layout as L
 
     ok(L.slot_count("full") == 1, "«На весь экран» — одно место")
     ok(L.slot_count("half") == 2 and L.slot_count("6040") == 3, "half is two, 60/40 is three")
@@ -351,7 +351,7 @@ def test_layout_presets():
 
 def test_window_helpers():
     """Окна других программ: на не-Windows всё честно ничего не делает."""
-    from app import windows as W
+    from app.platform import windows as W
 
     if not W.available():
         ok(W.list_windows() == [], "list_windows is empty where there is no user32")
@@ -377,9 +377,9 @@ def test_window_helpers():
 
 def test_discovery_sources():
     """Найденное помечается источником и умеет докладывать об ошибках."""
-    from app import discovery
+    from app.platform import discovery
 
-    source = _read("app", "discovery.py")
+    source = _read("app", "platform", "discovery.py")
     ok("'startmenu'" in source, "the Start Menu pass tags what it finds")
     ok("'registry'" in source, "and so do the uninstall and App Paths passes")
 
@@ -453,7 +453,7 @@ def test_store_load_validation():
     """
     import json
 
-    from app.store import DEFAULT_SETTINGS
+    from app.core.store import DEFAULT_SETTINGS
 
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, "data.json")
@@ -515,7 +515,7 @@ def test_store_load_validation():
         ok(set(settings2) == set(DEFAULT_SETTINGS), "the settings schema is exactly the known keys")
 
         # The sanitised library must survive the operations the UI performs.
-        from app import queries
+        from app.core import queries
         sections = queries.build_sections(state["apps"], state["categories"], "all", "alpha", set())
         ok(queries.flatten_sections(sections), "sanitised records render into sections")
         for sort in queries.SORT_KEYS:
@@ -577,8 +577,8 @@ def test_store_write_failure():
 
 def test_store_batched_writes():
     """Bulk paths write the file once, not once per record."""
-    from app import discovery
-    from app.view_state import ViewState
+    from app.platform import discovery
+    from app.core.view_state import ViewState
 
     with tempfile.TemporaryDirectory() as d:
         s = Store(os.path.join(d, "data.json"))
@@ -615,7 +615,7 @@ def test_store_batched_writes():
 def test_image_cache_bounded():
     """The base64 caches used to keep every image the session ever touched."""
     try:
-        from app import images
+        from app.ui import images
     except Exception as exc:  # flet only — a missing ceiling must not skip
         skip("image cache test", exc)
         return
@@ -668,7 +668,7 @@ def test_store_corrupt_recovery():
 
 
 def test_cdn_circuit_breaker():
-    from app import discovery
+    from app.platform import discovery
 
     discovery.reset_cdn_state()
     ok(discovery._cdn_available() is True, "downloads start out enabled")
@@ -718,7 +718,7 @@ def test_hotkey_rejection():
     Exercises the mapping builder directly: starting a real GlobalHotKeys
     listener would need a display and could hang a headless run.
     """
-    from app.hotkeys import HotkeyManager
+    from app.core.hotkeys import HotkeyManager
 
     class FakeHotKey:
         @staticmethod
@@ -789,7 +789,7 @@ def test_hotkey_no_double_launch():
     pynput doesn't swallow the keystroke, so a focused window sees it too —
     both handlers firing used to launch two apps on one Ctrl+N.
     """
-    from app.hotkeys import HotkeyManager
+    from app.core.hotkeys import HotkeyManager
 
     class FakeKeyboard:
         class HotKey:
@@ -849,7 +849,7 @@ def test_geometry_debounce():
     """
     import time
 
-    from app.debounce import Debounce
+    from app.infra.debounce import Debounce
 
     # Every immediate flush goes through _completes(), and each assertion gets
     # its own instance: a deadlocked flush keeps that instance's lock forever.
@@ -884,7 +884,7 @@ def test_geometry_debounce():
 
 
 def test_autostart():
-    from app import autostart
+    from app.platform import autostart
 
     with tempfile.TemporaryDirectory() as d:
         prev = os.environ.get("APPDATA")
@@ -960,14 +960,14 @@ def test_no_duplicate_icon_lists():
     store.CATEGORY_ICONS and format.CATEGORY_ICON_CHOICES were byte-identical
     copies of each other that nothing read.
     """
-    from app import format as fmt
-    from app import store as store_mod
+    from app.ui import format as fmt
+    from app.core import store as store_mod
 
     ok(not hasattr(store_mod, "CATEGORY_ICONS"), "store carries no icon list of its own")
     ok(not hasattr(fmt, "CATEGORY_ICON_CHOICES"), "the unread choices copy is gone")
     ok(isinstance(fmt.ICON_PACK, list) and len(fmt.ICON_PACK) > 10,
        "ICON_PACK is the surviving list")
-    ok("CATEGORY_ICON" not in _read("app", "ui.py"),
+    ok("CATEGORY_ICON" not in _read("app", "ui", "app.py"),
        "ui.py no longer imports a constant it never used")
 
 
@@ -975,7 +975,7 @@ def test_admin_argument_quoting():
     """The elevated command line is built with Windows' own quoting rules."""
     import subprocess
 
-    from app.launcher import Launcher
+    from app.platform.launcher import Launcher
 
     built = []
 
@@ -1015,7 +1015,7 @@ def test_packaging_metadata():
 
     pyproject = _read("pyproject.toml")
     installer = _read("installer", "centurio.iss")
-    ui_source = _read("app", "ui.py")
+    ui_source = _read("app", "ui", "app.py")
 
     quoted = re.escape(f'"{__version__}"')
     ok(re.search(rf"^version = {quoted}$", pyproject, re.M),
@@ -1078,7 +1078,7 @@ def test_icon():
 
 
 def test_discovery():
-    from app import discovery
+    from app.platform import discovery
     apps = discovery.discover_apps()
     ok(isinstance(apps, list), "discover_apps returns a list")
     ok(all(("name" in a and "path" in a) for a in apps), "discovered apps have name+path")
@@ -1182,7 +1182,7 @@ def test_discovery():
 
 
 def test_hotkeys():
-    from app.hotkeys import app_for_accel, quick_accels, quick_bindings, to_pynput
+    from app.core.hotkeys import app_for_accel, quick_accels, quick_bindings, to_pynput
     ok(to_pynput("Ctrl+Shift+1") == "<ctrl>+<shift>+1", "hotkey -> pynput format")
     ok(to_pynput("Alt+G") == "<alt>+g", "hotkey letter")
     ok(to_pynput("F5") == "<f5>", "hotkey F-key")
@@ -1216,7 +1216,7 @@ def test_hotkeys():
 
     # Наборы — своя строка клавиатуры, чтобы цифра на плитке всегда значила
     # ровно Ctrl+N и запускала программу, а не набор.
-    from app.hotkeys import SET_PREFIX, set_accels, set_bindings, split_binding
+    from app.core.hotkeys import SET_PREFIX, set_accels, set_bindings, split_binding
     sets = [{"id": "s1", "hotkey": None}, {"id": "s2", "hotkey": "Ctrl+Alt+7"},
             {"id": "s3", "hotkey": None}]
     accels = set_accels(sets)
@@ -1237,7 +1237,7 @@ def test_launcher_monitor_lifecycle():
     import time
     import types
 
-    from app.launcher import Launcher
+    from app.platform.launcher import Launcher
 
     fake = types.ModuleType("psutil")
     fake.process_iter = lambda attrs=None: []
@@ -1268,7 +1268,7 @@ def test_launcher_monitor_lifecycle():
 
 def test_launcher_emit():
     """Running-state changes are emitted once, and only when they change."""
-    from app.launcher import Launcher
+    from app.platform.launcher import Launcher
 
     seen = []
     lch = Launcher(on_change=lambda ids: seen.append(sorted(ids)))
@@ -1284,7 +1284,7 @@ def test_launcher_emit():
 
 
 def test_launcher_index():
-    from app.launcher import Launcher
+    from app.platform.launcher import Launcher
     lch = Launcher()
     lch.set_apps([{"id": "1", "path": r"C:\x\chrome.exe"},
                   {"id": "2", "path": "steam://rungameid/730"},
@@ -1300,7 +1300,7 @@ def test_launcher_index():
     ok(all("steam" not in k for k in keys), "URL launchers excluded from index")
 
     # set_apps used to carry its own copy of the extension list.
-    from app import launcher as launcher_module
+    from app.platform import launcher as launcher_module
     launcher_module._EXE_EXTS.add(".ps1")
     try:
         lch.set_apps([{"id": "7", "path": r"C:\s\script.ps1"}])
@@ -1331,7 +1331,7 @@ def test_color_parsing():
 
 
 def test_launch_options():
-    from app.launcher import Launcher
+    from app.platform.launcher import Launcher
     lch = Launcher()
     ok(lch._as_args("--a b") == ["--a", "b"], "string args split")
     ok(lch._as_args(["--x", "y"]) == ["--x", "y"], "list args preserved")
@@ -1389,7 +1389,7 @@ def test_data_ops():
 def test_log():
     import importlib
 
-    from app import log as _log
+    from app.infra import log as _log
     importlib.reload(_log)  
     import logging
     with tempfile.TemporaryDirectory() as d:
@@ -1408,8 +1408,8 @@ def test_log():
 
 
 def test_queries():
-    from app import queries
-    from app.view_state import ViewState
+    from app.core import queries
+    from app.core.view_state import ViewState
 
     cats = [{"id": "work", "name": "Work", "order": 0}, {"id": "games", "name": "Games", "order": 1}]
     apps = [
@@ -1536,7 +1536,7 @@ class _FakePage:
 def _ui_for(store):
     from unittest.mock import MagicMock
 
-    from app.ui import CenturioUI
+    from app.ui.app import CenturioUI
     page = _FakePage()
     ui = CenturioUI(page, store, MagicMock())
     ui.mount()
@@ -1582,12 +1582,14 @@ def _menu_labels(ui):
 
 def test_no_modal_dialogs():
     """Приёмка: ни одного AlertDialog в коде."""
-    for module in ("ui.py", "dialogs.py", "main.py", "toast.py", "menus.py"):
-        source = _read("app", module)
+    for parts in (("ui", "app.py"), ("ui", "dialogs.py"), ("main.py",),
+                  ("ui", "toast.py"), ("ui", "menus.py")):
+        source = _read("app", *parts)
+        module = "/".join(parts)
         ok("AlertDialog(" not in source, f"app/{module} opens no modal dialog")
         ok("SnackBar(" not in source, f"app/{module} doesn't fall back to a snack bar")
 
-    dialogs = _read("app", "dialogs.py")
+    dialogs = _read("app", "ui", "dialogs.py")
     for gone in ("open_app_dialog", "open_context_menu", "open_settings_dialog",
                  "open_categories_dialog", "def confirm("):
         ok(gone not in dialogs, f"the old {gone.strip('def (')} entry point is gone")
@@ -1633,8 +1635,10 @@ def test_colours_come_from_one_file():
     import re
 
     offenders = []
-    for module in ("ui.py", "dialogs.py", "menus.py", "toast.py"):
-        for index, line in enumerate(_read("app", module).splitlines(), 1):
+    for parts in (("ui", "app.py"), ("ui", "dialogs.py"), ("ui", "menus.py"),
+                  ("ui", "toast.py")):
+        module = "/".join(parts)
+        for index, line in enumerate(_read("app", *parts).splitlines(), 1):
             for hexval in re.findall(r'"(#[0-9a-fA-F]{3,8})"', line):
                 offenders.append(f"app/{module}:{index} {hexval}")
     ok(not offenders,
@@ -1655,9 +1659,12 @@ def test_ui_text_stays_inside_the_bundled_fonts():
 
     allowed = set("«»—–…·×→↑↓№°")
     offenders = []
-    for module in ("ui.py", "dialogs.py", "menus.py", "toast.py", "queries.py",
-                   "format.py", "store.py", "hotkeys.py", "layout.py", "windows.py"):
-        tree = ast.parse(_read("app", module))
+    for parts in (("ui", "app.py"), ("ui", "dialogs.py"), ("ui", "menus.py"),
+                  ("ui", "toast.py"), ("core", "queries.py"), ("ui", "format.py"),
+                  ("core", "text.py"), ("core", "store.py"), ("core", "hotkeys.py"),
+                  ("core", "layout.py"), ("platform", "windows.py")):
+        module = "/".join(parts)
+        tree = ast.parse(_read("app", *parts))
         for node in ast.walk(tree):
             if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
                 continue
@@ -1668,14 +1675,14 @@ def test_ui_text_stays_inside_the_bundled_fonts():
                                  f"({unicodedata.name(ch, '?')})")
     ok(not offenders, "every character shown has a glyph: " + ("; ".join(offenders[:5])
                                                                or "none missing"))
-    ok("↵" not in _read("app", "ui.py") + _read("app", "dialogs.py"),
+    ok("↵" not in _read("app", "ui", "app.py") + _read("app", "ui", "dialogs.py"),
        "the Enter arrow in particular is spelled out, because no bundled font has it")
 
 
 def test_ui_single_screen_layout():
     """Одно окно: шапка с поиском, рельса, панель, контент, инспектор."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI layout test", exc)
         return
@@ -1787,14 +1794,14 @@ def test_ui_matches_the_design_sizes():
     следующей правке: плитка не 164, палитра не 640, полотно монитора не 280.
     """
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI size test", exc)
         return
 
     import flet as ft
 
-    from app import colors as C
+    from app.ui import colors as C
 
     with tempfile.TemporaryDirectory() as d:
         store = Store(os.path.join(d, "data.json"))
@@ -1862,7 +1869,7 @@ def test_ui_matches_the_design_sizes():
 def test_ui_inbox_badge_and_triage():
     """Разбор: значок со счётчиком, очередь по одной, четыре клавиши."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI triage test", exc)
         return
@@ -1929,7 +1936,7 @@ def test_ui_context_menus():
     они про массовые операции — выделение и категория. По пустому месту
     сетки правая кнопка больше ничего не открывает."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI context-menu test", exc)
         return
@@ -1990,7 +1997,7 @@ def test_ui_context_menus():
 def test_ui_inspector_replaces_the_modal_form():
     """Инспектор вместо окна на тринадцать полей."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI inspector test", exc)
         return
@@ -2057,7 +2064,7 @@ def test_ui_inspector_replaces_the_modal_form():
 
 def test_ui_delete_is_undone_not_confirmed():
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI delete test", exc)
         return
@@ -2110,7 +2117,7 @@ def test_ui_delete_is_undone_not_confirmed():
 
 def test_ui_sets():
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI sets test", exc)
         return
@@ -2200,7 +2207,7 @@ def test_ui_sets():
 def test_ui_click_launches_right_click_inspects():
     """ЛКМ по плитке запускает программу, ПКМ открывает инспектор."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI click-behaviour test", exc)
         return
@@ -2236,7 +2243,7 @@ def test_ui_click_launches_right_click_inspects():
 def test_ui_bulk_operations():
     """Массовые операции: режим выбора, плавающая панель, отмена вместо вопроса."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI bulk-select test", exc)
         return
@@ -2335,7 +2342,7 @@ def test_ui_bulk_operations():
 def test_ui_quick_numbers_match_the_hotkeys():
     """A number in the quick strip is a promise that Ctrl+N does this."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("quick-slot numbering test", exc)
         return
@@ -2348,7 +2355,7 @@ def test_ui_quick_numbers_match_the_hotkeys():
         ui._make_set(ids)          # goes into the strip, ahead of both cards
         ui.refresh()
 
-        from app.hotkeys import free_quick_slot, quick_accels
+        from app.core.hotkeys import free_quick_slot, quick_accels
 
         accels = quick_accels(store.state()["apps"])
         ok(sorted(a.split("+")[-1] for a in accels.values()) == ["1", "2"],
@@ -2375,8 +2382,8 @@ def test_ui_quick_numbers_match_the_hotkeys():
 def test_ui_add_screen():
     """Найденное сгруппировано по источнику, путь можно вставить руками."""
     try:
-        from app import discovery
-        from app.ui import CenturioUI  # noqa: F401
+        from app.platform import discovery
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI add-screen test", exc)
         return
@@ -2468,8 +2475,8 @@ def test_ui_add_screen():
 def test_ui_scanning_is_just_a_spinner():
     """05: кружок и слово, без процентов и имён источников."""
     try:
-        from app import discovery
-        from app.ui import CenturioUI  # noqa: F401
+        from app.platform import discovery
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI scanning test", exc)
         return
@@ -2510,7 +2517,7 @@ def test_ui_scanning_is_just_a_spinner():
 def test_ui_category_popover():
     """08: палитра, HEX, два ползунка и своя картинка вместо RGB-ползунков."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI category popover test", exc)
         return
@@ -2550,7 +2557,7 @@ def test_ui_category_popover():
         ok(stored and os.path.exists(stored), "a custom image is copied next to the library")
         store.update_category(cat_id, {"image": stored})
         ui.refresh()
-        from app import widgets
+        from app.ui import widgets
         glyph = widgets.cat_glyph(store.state()["categories"][0])
         ok(isinstance(glyph, ft.Image), "and it is what the rail draws")
         ui.clear_category_image(cat_id)
@@ -2563,7 +2570,7 @@ def test_ui_category_popover():
 def test_ui_calm_mode():
     """Один флаг убирает счётчики, пути, номера мест и подсказки."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI calm-mode test", exc)
         return
@@ -2606,7 +2613,7 @@ def test_ui_calm_mode():
 def test_ui_search_palette():
     """Палитра поиска вместо окна «Запуск»: тот же лончер, одно окно."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI palette test", exc)
         return
@@ -2634,7 +2641,7 @@ def test_ui_search_palette():
         ok("Утро" in shown, "and the sets")
 
         # Первое Ctrl+Пробел на чистой библиотеке не должно открывать пустоту.
-        from app import queries
+        from app.core import queries
         fresh = Store(os.path.join(d, "fresh.json"))
         fresh.add_app({"name": "Пусто", "path": "/x/p.exe", "category_id": "work"})
         rows = queries.search_rows(fresh.state()["apps"], "", set(),
@@ -2689,7 +2696,7 @@ def test_ui_search_palette():
 
 def test_ui_launch_failure_offers_a_way_out():
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI launch-failure test", exc)
         return
@@ -2710,7 +2717,7 @@ def test_ui_launch_failure_offers_a_way_out():
 
 def test_ui_keyboard():
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI keyboard test", exc)
         return
@@ -2853,7 +2860,7 @@ def test_ui_keyboard():
 def test_ui_icons_are_never_letters():
     try:
         import flet as ft
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI icon test", exc)
         return
@@ -2876,13 +2883,13 @@ def test_ui_icons_are_never_letters():
         slot = ui.icon_slot(store.get_app(app["id"]), 60, 16)
         ok(isinstance(slot.content, ft.Image), "once extracted, the real icon is what shows")
 
-        ok("initials" not in _read("app", "ui.py"),
+        ok("initials" not in _read("app", "ui", "app.py"),
            "nothing in the window draws a letter placeholder any more")
 
 
 def test_ui_settings_screen():
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI settings test", exc)
         return
@@ -2942,8 +2949,8 @@ def test_ui_settings_screen():
 
 def test_ui_first_run():
     try:
-        from app import discovery
-        from app.ui import CenturioUI  # noqa: F401
+        from app.platform import discovery
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI first-run test", exc)
         return
@@ -2987,7 +2994,7 @@ def test_ui_first_run():
 
 def test_toast_lifecycle():
     try:
-        from app.toast import ToastHost
+        from app.ui.toast import ToastHost
     except Exception as exc:
         skip("toast test", exc)
         return
@@ -3027,7 +3034,7 @@ def test_toast_lifecycle():
 def test_ui_settings_cache():
     """refresh() reads the store once, no matter how many tiles it draws."""
     try:
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI settings-cache test", exc)
         return
@@ -3076,7 +3083,7 @@ def test_ui_refresh_thread_safety():
     try:
         import threading
 
-        from app.ui import CenturioUI  # noqa: F401
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI refresh thread-safety test", exc)
         return
@@ -3198,8 +3205,8 @@ def test_shutdown_releases_resources():
 
 def test_tray_mini_launcher():
     try:
-        from app import dialogs
-        from app.tray import TrayController
+        from app.ui import dialogs
+        from app.platform.tray import TrayController
     except Exception as exc:
         skip("tray test", exc)
         return
@@ -3235,8 +3242,8 @@ def test_tray_mini_launcher():
 def test_ui_background_rescan():
     """Тихая проверка складывает новое в разбор и не переиконивает всё."""
     try:
-        from app import discovery
-        from app.ui import CenturioUI  # noqa: F401
+        from app.platform import discovery
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI background-rescan test", exc)
         return
@@ -3286,8 +3293,8 @@ def test_ui_background_rescan():
 def test_ui_discovery_reuse():
     """Rescan, then open «Найти и добавить»: the machine is walked once."""
     try:
-        from app import discovery
-        from app.ui import CenturioUI  # noqa: F401
+        from app.platform import discovery
+        from app.ui.app import CenturioUI  # noqa: F401
     except Exception as exc:
         skip("UI discovery-reuse test", exc)
         return

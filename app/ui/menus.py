@@ -160,7 +160,7 @@ class MenuHost:
             if self.control.page:
                 self.control.update()
         except Exception:
-            from . import log
+            from ..infra import log
             log.exception("не удалось обновить контекстное меню")
 
 

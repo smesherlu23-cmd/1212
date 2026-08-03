@@ -16,7 +16,7 @@ def is_debug() -> bool:
 
 
 def _default_dir() -> Path:
-    from .store import default_data_path
+    from ..core.store import default_data_path
     return default_data_path().parent
 
 

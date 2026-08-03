@@ -4,7 +4,7 @@ import ntpath
 import sys
 import threading
 
-from . import log
+from ..infra import log
 
 _SW_RESTORE = 9
 _SW_MINIMIZE = 6

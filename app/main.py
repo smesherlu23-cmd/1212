@@ -8,16 +8,17 @@ from pathlib import Path
 
 import flet as ft
 
-from app import autostart, log
-from app import colors as C
-from app.debounce import Debounce
-from app.hotkeys import (TOGGLE_LAUNCH, HotkeyManager, app_for_accel, quick_bindings,
-                         set_bindings, set_for_accel, split_binding)
-from app.iconify import ensure_icons
-from app.launcher import Launcher
-from app.store import DEFAULT_LAUNCH_HOTKEY, Store
-from app.tray import TrayController
-from app.ui import CenturioUI
+from app.core.hotkeys import (TOGGLE_LAUNCH, HotkeyManager, app_for_accel, quick_bindings,
+                              set_bindings, set_for_accel, split_binding)
+from app.core.store import DEFAULT_LAUNCH_HOTKEY, Store
+from app.infra import log
+from app.infra.debounce import Debounce
+from app.platform import autostart
+from app.platform.launcher import Launcher
+from app.platform.tray import TrayController
+from app.ui import colors as C
+from app.ui.app import CenturioUI
+from app.ui.iconify import ensure_icons
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 GEOMETRY_FLUSH_DELAY = 0.5
@@ -191,7 +192,7 @@ def main(page: ft.Page):
     }
 
     def tray_menu():
-        from app import dialogs
+        from app.ui import dialogs
         items = [(item["label"], (lambda aid=item["id"]: on_hotkey(aid)))
                  for item in dialogs.tray_items(store)]
         return items, dialogs.library_summary(store)
@@ -265,7 +266,7 @@ def main(page: ft.Page):
 
     def _backfill():
         try:
-            from app import discovery
+            from app.platform import discovery
             cache = str(app_paths_dir(store))
             schema = store.state()["settings"].get("icon_schema", 0)
             refresh = schema < discovery.ICON_SCHEMA

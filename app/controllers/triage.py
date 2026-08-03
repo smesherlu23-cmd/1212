@@ -4,7 +4,7 @@ import time
 
 import flet as ft
 
-from . import colors as C
+from ..ui import colors as C
 
 
 class TriageController:

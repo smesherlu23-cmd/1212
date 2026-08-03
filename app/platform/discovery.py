@@ -8,7 +8,7 @@ import re
 import subprocess
 import threading
 
-from . import log
+from ..infra import log
 
 _JUNK_TOKENS = ("uninstall", "удал", "readme", "read me", "help", "документац",
                 "documentation", "release notes", "website", "на сайт", "лиценз",

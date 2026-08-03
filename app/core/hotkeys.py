@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from . import log
+from ..infra import log
 
 _MODS = {
     "ctrl": "<ctrl>", "control": "<ctrl>",

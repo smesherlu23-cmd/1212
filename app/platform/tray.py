@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-from . import log
+from ..infra import log
 
 
 class TrayController:
