@@ -8,6 +8,7 @@ from pathlib import Path
 import flet as ft
 
 from . import colors as C
+from . import dialogs
 from . import menus
 from . import widgets as Wg
 from .format import T
@@ -734,7 +735,6 @@ class CenturioUI:
         )
 
     def _build_content(self):
-        from . import dialogs
         screen = self.view.screen
         if screen == "add":
             return [dialogs.build_add_screen(self)]
@@ -1340,7 +1340,6 @@ class CenturioUI:
         return next((r["app"] for r in rows if r["kind"] == "app"), None)
 
     def _render_palette(self):
-        from . import dialogs
         if not self.view.palette_open or self.view.onboarding:
             self._palette_count = 0
             self.palette_layer.visible = False
@@ -1356,7 +1355,6 @@ class CenturioUI:
         self.palette_layer.visible = True
 
     def _render_bulk_bar(self):
-        from . import dialogs
         showing = bool(self.view.select_mode and self.view.sel)
         self.toast.lift(showing)
         if not showing:
@@ -2497,7 +2495,6 @@ class CenturioUI:
         self._backfill_icons_async()
 
     def _render_popover(self):
-        from . import dialogs
         cat_id = self.view.popover
         cat = next((c for c in self.categories() if c["id"] == cat_id), None)
         if cat is None:
@@ -2513,7 +2510,6 @@ class CenturioUI:
         self.popover_layer.visible = True
 
     def _render_onboarding(self):
-        from . import dialogs
         if not self.view.onboarding:
             self.onboarding_layer.visible = False
             self.onboarding_layer.content = None
