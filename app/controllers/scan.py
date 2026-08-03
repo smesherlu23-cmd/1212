@@ -173,8 +173,13 @@ class ScanController:
         self._manual_found = []
         self.ui.view.set_screen("grid")
         self.ui.view.filter = "all"
+
+        def undo():
+            self.store.remove_apps([r["id"] for r in added])
+            self.ui._on_library_changed()
+        self.ui.undo_stack.push(undo)
         self.ui.toast.show(f"Добавлено {len(added)} {plu_apps(len(added))}",
-                           action=lambda: self._restore_added(added), action_label="Вернуть")
+                           action=self.ui.undo_stack.undo, action_label="Вернуть")
         self.ui._on_library_changed()
         self.backfill_icons_async()
 
@@ -189,10 +194,6 @@ class ScanController:
         self.ui.view.set_screen("grid")
         self.ui.toast.show(f"В разборе: {queued}", icon=ft.Icons.INBOX, icon_color=C.MUTED,
                            action=self.ui._open_triage, action_label="Разобрать")
-        self.ui._on_library_changed()
-
-    def _restore_added(self, records):
-        self.store.remove_apps([r["id"] for r in records])
         self.ui._on_library_changed()
 
     def pick_file(self):

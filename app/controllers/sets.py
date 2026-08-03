@@ -168,15 +168,14 @@ class SetsController:
         self.store.update_set(set_id, {"items": items,
                                        "layout": {"preset": preset, "split": split,
                                                   "vsplit": vsplit}})
+
+        def undo():
+            self.store.update_set(set_id, {"items": before, "layout": rec["layout"]})
+            self.ui.refresh()
+        self.ui.undo_stack.push(undo)
         self.ui.toast.show(f"Раскладка снята с {len(rects)} {plu_windows(len(rects))}",
                            icon=ft.Icons.SAVE, icon_color=C.MUTED,
-                           action=lambda: self.restore_set_items(set_id, before,
-                                                                 rec["layout"]),
-                           action_label="Вернуть")
-        self.ui.refresh()
-
-    def restore_set_items(self, set_id, items, conf):
-        self.store.update_set(set_id, {"items": items, "layout": conf})
+                           action=self.ui.undo_stack.undo, action_label="Вернуть")
         self.ui.refresh()
 
     def toggle_set_quick(self, set_id, value):
@@ -202,9 +201,15 @@ class SetsController:
         self.ui.view.clear_selection()
         self.ui.view.select_mode = False
         self.ui.view.open_set(rec["id"])
+
+        def undo():
+            self.store.remove_set(rec["id"])
+            self.ui.view.close_set()
+            self.ui._on_library_changed()
+        self.ui.undo_stack.push(undo)
         self.ui.toast.show(f"Набор «{rec['name']}» собран", icon=ft.Icons.LAYERS,
                            icon_color=C.MUTED,
-                           action=lambda: self.undo_set(rec["id"]), action_label="Вернуть")
+                           action=self.ui.undo_stack.undo, action_label="Вернуть")
         self.ui._on_library_changed()
 
     def add_to_set(self, set_id, app_ids):
@@ -218,10 +223,14 @@ class SetsController:
                                icon_color=C.MUTED)
             return
         self.store.update_set(set_id, {"apps": merged})
+
+        def undo():
+            self.store.update_set(set_id, {"apps": before})
+            self.ui.refresh()
+        self.ui.undo_stack.push(undo)
         self.ui.toast.show(f"Добавлено в «{rec['name']}»", icon=ft.Icons.LAYERS,
                            icon_color=C.MUTED,
-                           action=lambda: self.restore_set_members(set_id, before),
-                           action_label="Вернуть")
+                           action=self.ui.undo_stack.undo, action_label="Вернуть")
         self.ui.refresh()
 
     def remove_from_set(self, set_id, app_id):
@@ -236,20 +245,14 @@ class SetsController:
             self.remove_set(set_id)
             return
         self.store.update_set(set_id, {"items": rest})
+
+        def undo():
+            self.store.update_set(set_id, {"items": before, "layout": rec["layout"]})
+            self.ui.refresh()
+        self.ui.undo_stack.push(undo)
         self.ui.toast.show("Убрано из набора", icon=ft.Icons.LAYERS, icon_color=C.MUTED,
-                           action=lambda: self.restore_set_items(set_id, before,
-                                                                 rec["layout"]),
-                           action_label="Вернуть")
+                           action=self.ui.undo_stack.undo, action_label="Вернуть")
         self.ui.refresh()
-
-    def restore_set_members(self, set_id, members):
-        self.store.update_set(set_id, {"apps": members})
-        self.ui.refresh()
-
-    def undo_set(self, set_id):
-        self.store.remove_set(set_id)
-        self.ui.view.close_set()
-        self.ui._on_library_changed()
 
     def remove_set(self, set_id):
         rec = self.store.remove_set(set_id)
@@ -257,13 +260,14 @@ class SetsController:
             return
         if self.ui.view.active_set == set_id:
             self.ui.view.close_set()
+
+        def undo():
+            self.store.restore_set(rec)
+            self.ui._on_library_changed()
+        self.ui.undo_stack.push(undo)
         self.ui.toast.show(f"Набор «{rec['name']}» удалён", icon=ft.Icons.DELETE_OUTLINE,
                            icon_color=C.MUTED,
-                           action=lambda: self.restore_set(rec), action_label="Вернуть")
-        self.ui._on_library_changed()
-
-    def restore_set(self, rec):
-        self.store.restore_set(rec)
+                           action=self.ui.undo_stack.undo, action_label="Вернуть")
         self.ui._on_library_changed()
 
     def rename_set(self, set_id, name):

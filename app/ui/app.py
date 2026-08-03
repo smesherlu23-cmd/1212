@@ -25,6 +25,7 @@ from ..core.hotkeys import free_quick_slot, is_reserved, quick_accels, set_accel
 from ..core.store import Store
 from ..core.text import (plu_apps, plu_hits, plu_programs, plu_windows,
                          short_ago, time_ago)
+from ..core.undo import UndoStack
 from ..core.view_state import ViewState
 from ..infra import log
 from ..platform import windows as W
@@ -55,6 +56,7 @@ class CenturioUI:
 
         self.toast = ToastHost(page)
         self.menu = MenuHost(page, on_dismiss=self._on_menu_dismissed)
+        self.undo_stack = UndoStack()
         self.set_ops = SetsController(self)
         self.scan = ScanController(self)
         self.triage = TriageController(self)
@@ -2023,10 +2025,11 @@ class CenturioUI:
         if not touched:
             return
         self.view.clear_selection()
+        self.undo_stack.push(lambda: self._hide_apps(ids, not hidden))
         text = (f"Скрыто {touched}" if hidden else f"Снова видно: {touched}")
         self.toast.show(text, icon=ft.Icons.VISIBILITY_OFF if hidden else ft.Icons.VISIBILITY,
                         icon_color=C.MUTED,
-                        action=lambda: self._hide_apps(ids, not hidden),
+                        action=self.undo_stack.undo,
                         action_label="Отменить")
         self._on_library_changed()
 
@@ -2105,14 +2108,15 @@ class CenturioUI:
 
     def _bulk_favorite(self, ids):
         before = [i for i in ids if not (self.store.get_app(i) or {}).get("favorite")]
-        self.store.update_apps(ids, {"favorite": True})
-        self.toast.show(f"В избранном: {len(ids)}", icon=ft.Icons.STAR, icon_color=C.STAR,
-                        action=lambda: self._undo_favorite(before),
-                        action_label="Отменить")
-        self.refresh()
 
-    def _undo_favorite(self, ids):
-        self.store.update_apps(ids, {"favorite": False})
+        def undo():
+            self.store.update_apps(before, {"favorite": False})
+            self.refresh()
+        self.store.update_apps(ids, {"favorite": True})
+        self.undo_stack.push(undo)
+        self.toast.show(f"В избранном: {len(ids)}", icon=ft.Icons.STAR, icon_color=C.STAR,
+                        action=self.undo_stack.undo,
+                        action_label="Отменить")
         self.refresh()
 
     def _new_set(self):
@@ -2127,17 +2131,8 @@ class CenturioUI:
     def _remove_from_set(self, set_id, app_id):
         self.set_ops.remove_from_set(set_id, app_id)
 
-    def _restore_set_members(self, set_id, members):
-        self.set_ops.restore_set_members(set_id, members)
-
-    def _undo_set(self, set_id):
-        self.set_ops.undo_set(set_id)
-
     def _remove_set(self, set_id):
         self.set_ops.remove_set(set_id)
-
-    def _restore_set(self, rec):
-        self.set_ops.restore_set(rec)
 
     def rename_set(self, set_id, name):
         self.set_ops.rename_set(set_id, name)
@@ -2188,14 +2183,15 @@ class CenturioUI:
         if not gone:
             return
         self.view.close_inspector()
+
+        def undo():
+            self.store.restore_apps(gone)
+            self._on_library_changed()
+        self.undo_stack.push(undo)
         text = (f"{gone[0]['name']} убран из библиотеки" if len(gone) == 1
                 else f"Убрано {len(gone)} {plu_apps(len(gone))}")
         self.toast.show(text, icon=ft.Icons.DELETE_OUTLINE, icon_color=C.MUTED,
-                        action=lambda: self._restore_apps(gone), action_label="Вернуть")
-        self._on_library_changed()
-
-    def _restore_apps(self, records):
-        self.store.restore_apps(records)
+                        action=self.undo_stack.undo, action_label="Вернуть")
         self._on_library_changed()
 
     def _add_category(self):
@@ -2280,15 +2276,16 @@ class CenturioUI:
             return
         self.view.close_popover()
         moved = len(undo["apps"])
+
+        def do_undo():
+            self.store.restore_category(undo)
+            self._on_library_changed()
+        self.undo_stack.push(do_undo)
         text = f"Категория «{cat['name']}» удалена" if cat else "Категория удалена"
         if moved:
             text += f", {moved} {plu_apps(moved)} перенесено"
         self.toast.show(text, icon=ft.Icons.DELETE_OUTLINE, icon_color=C.MUTED,
-                        action=lambda: self._restore_category(undo), action_label="Вернуть")
-        self._on_library_changed()
-
-    def _restore_category(self, undo):
-        self.store.restore_category(undo)
+                        action=self.undo_stack.undo, action_label="Вернуть")
         self._on_library_changed()
 
     def _open_add(self):
