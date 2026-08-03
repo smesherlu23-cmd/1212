@@ -2,6 +2,10 @@
 ; Packages the `flet build windows` output into a Windows installer with a
 ; Start-Menu shortcut and an optional "launch at startup" checkbox.
 ;
+; Build + sign + compile in one go:  scripts\build_windows.ps1
+; (that script calls ISCC.exe on this file as its last step; run it manually
+; only if you already have a build/windows output and just want to repackage it)
+;
 ; Build first:   flet build windows
 ; Then compile:  "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\centurio.iss
 ; Output:        installer\Output\CenturioSetup.exe
