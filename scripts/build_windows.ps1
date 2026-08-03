@@ -8,16 +8,16 @@
     overlay (the Flutter engine + Python runtime bundled after the PE's
     declared sections) is the single most common trigger for this class of
     app to get flagged by 1-5 heuristic/ML antivirus engines. None of that
-    is fixable in the app's Python code — it's a property of how Flet
+    is fixable in the app's Python code - it's a property of how Flet
     packages a desktop build. This script controls what actually can be
     controlled:
 
       - Builds from a clean virtual environment with only the pinned
-        dependencies in requirements.txt — no leftover dev/test packages,
+        dependencies in requirements.txt - no leftover dev/test packages,
         no stale caches bloating the bundle.
       - Passes full version/publisher metadata to the compiled exe (via
         pyproject.toml's [tool.flet] section) so it isn't an anonymous
-        "no version info" binary — another heuristic signal.
+        "no version info" binary - another heuristic signal.
       - Excludes tests, VCS metadata, and caches from the packaged app.
       - Code-signs the exe if SIGNING_PFX_PATH (and SIGNING_PFX_PASSWORD,
         if the PFX needs one) are set in the environment. This is the one
@@ -105,12 +105,12 @@ Step "Building the Windows package (flet build windows)"
     --exclude tests scripts installer .git .github .build-venv __pycache__
 
 if ($LASTEXITCODE -ne 0) {
-    throw "flet build windows failed (exit code $LASTEXITCODE) — see the log above."
+    throw "flet build windows failed (exit code $LASTEXITCODE) - see the log above."
 }
 
 $exePath = Join-Path $RepoRoot "build\windows\Centurio.exe"
 if (-not (Test-Path $exePath)) {
-    throw "Build finished but $exePath was not produced — check the flet build log above."
+    throw "Build finished but $exePath was not produced - check the flet build log above."
 }
 
 # ---------------------------------------------------------------------------
@@ -122,7 +122,7 @@ if (-not $SkipSign) {
             Where-Object { $_.FullName -like "*x64*" } |
             Select-Object -First 1 -ExpandProperty FullName
         if (-not $signtool) {
-            throw "signtool.exe not found — install the Windows SDK, or pass -SkipSign."
+            throw "signtool.exe not found - install the Windows SDK, or pass -SkipSign."
         }
         $signArgs = @("sign", "/f", $env:SIGNING_PFX_PATH)
         if ($env:SIGNING_PFX_PASSWORD) { $signArgs += @("/p", $env:SIGNING_PFX_PASSWORD) }
