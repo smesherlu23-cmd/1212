@@ -206,7 +206,7 @@ class ViewState:
             self.collapsed.discard(cid)
         else:
             self.collapsed.add(cid)
-        self.store.set_setting("collapsed", sorted(self.collapsed))
+        self.store.set_setting("collapsed", sorted(self.collapsed), persist="debounce")
 
     def open_popover(self, cat_id: str):
         self.popover = cat_id

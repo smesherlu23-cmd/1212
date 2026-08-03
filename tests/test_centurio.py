@@ -2550,7 +2550,8 @@ def test_ui_category_popover():
         ok(stored and os.path.exists(stored), "a custom image is copied next to the library")
         store.update_category(cat_id, {"image": stored})
         ui.refresh()
-        glyph = ui._cat_glyph(store.state()["categories"][0])
+        from app import widgets
+        glyph = widgets.cat_glyph(store.state()["categories"][0])
         ok(isinstance(glyph, ft.Image), "and it is what the rail draws")
         ui.clear_category_image(cat_id)
         ok(store.state()["categories"][0]["image"] is None, "it can be taken off again")
@@ -3313,7 +3314,7 @@ def test_ui_discovery_reuse():
             ok(_settle_threads(before), "the second open settles")
             ok(scans["n"] == 1, "a cached result is reused instead of rescanning")
 
-            ui._discovered_at -= 200
+            ui.scan._discovered_at -= 200
             ok(ui.cached_discovery() is None, "a stale result is not reused")
     finally:
         discovery.discover_apps = real_discover

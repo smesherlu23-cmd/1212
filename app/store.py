@@ -11,6 +11,7 @@ from pathlib import Path
 
 from . import layout as L
 from . import log
+from .debounce import Debounce
 
 DEFAULT_CATEGORIES = [
     {"id": "work", "name": "Работа", "icon": "work", "color": "#ffffff", "order": 0},
@@ -233,6 +234,7 @@ def _clean_settings(raw) -> dict:
 
 
 DATA_FILENAME = "centurio-data.json"
+PERSIST_DEBOUNCE_DELAY = 1.5
 
 
 def default_data_path() -> Path:
@@ -246,7 +248,12 @@ class Store:
         self._lock = threading.RLock()
         self.on_error = None
         self.write_error: str | None = None
+        self._persist_debounce = Debounce(PERSIST_DEBOUNCE_DELAY, self._debounced_persist)
         self.data = self._load()
+
+    def _debounced_persist(self) -> None:
+        with self._lock:
+            self._persist()
 
     def _defaults(self) -> dict:
         return {
@@ -742,16 +749,19 @@ class Store:
                 self._persist()
             return gone
 
-    def set_setting(self, key: str, value, persist: bool = True) -> dict:
+    def set_setting(self, key: str, value, persist: bool | str = True) -> dict:
         with self._lock:
             if key in DEFAULT_SETTINGS:
                 self.data["settings"][key] = value
-                if persist:
+                if persist == "debounce":
+                    self._persist_debounce.schedule()
+                elif persist:
                     self._persist()
             return dict(self.data["settings"])
 
     def flush(self) -> bool:
         with self._lock:
+            self._persist_debounce.cancel()
             return self._persist()
 
     def export_data(self, dest: str | Path) -> Path:
