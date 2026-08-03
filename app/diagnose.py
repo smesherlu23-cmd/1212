@@ -23,11 +23,11 @@ def run() -> None:
     for m in ("flet", "pystray", "PIL", "pynput", "psutil"):
         print(f"  {m:10}: {_mod(m)}")
 
-    from app.store import default_data_path
+    from app.core.store import default_data_path
     print(f"путь: {default_data_path()}")
     icon_cache = str(default_data_path().parent / "icons")
 
-    from app import discovery
+    from app.platform import discovery
     t0 = time.time()
     apps = discovery.discover_apps(icon_cache)
     dt = time.time() - t0

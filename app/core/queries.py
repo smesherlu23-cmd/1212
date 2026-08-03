@@ -164,14 +164,14 @@ def has_layout(rec: dict) -> bool:
 
 
 def set_summary(rec: dict) -> str:
-    from .format import plu_programs
+    from .text import plu_programs
     count = len(rec.get("items", []))
     text = f"{count} {plu_programs(count)}"
     return f"{text} · раскладка" if has_layout(rec) else text
 
 
 def set_palette_sub(rec: dict, members: list[str]) -> str:
-    from .format import plu_programs
+    from .text import plu_programs
     count = len(members)
     text = f"{count} {plu_programs(count)}"
     if members:
@@ -180,7 +180,7 @@ def set_palette_sub(rec: dict, members: list[str]) -> str:
 
 
 def app_palette_sub(row: dict, windows: int = 0) -> str:
-    from .format import plu_windows, short_ago
+    from .text import plu_windows, short_ago
     parts = [row["cat"]] if row["cat"] else []
     if row["note"] == "открыто":
         parts.append(f"открыто, {windows} {plu_windows(windows)}" if windows > 1 else "открыто")

@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import log
+from ..infra import log
 
 APP_NAME = "Centurio"
 _RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"

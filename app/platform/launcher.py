@@ -8,7 +8,7 @@ import subprocess
 import threading
 from pathlib import Path
 
-from . import log
+from ..infra import log
 
 _EXE_EXTS = {".exe", ".bat", ".cmd", ".com"}
 _DETACHED_PROCESS = 0x00000008

@@ -7,25 +7,26 @@ from pathlib import Path
 
 import flet as ft
 
-from . import __version__
 from . import colors as C
-from . import layout as L
-from . import log
 from . import menus
-from . import queries
 from . import widgets as Wg
-from . import windows as W
-from .scan_controller import ScanController
-from .sets_controller import SetsController
-from .triage_controller import TriageController
-from .format import (T, plu_apps, plu_hits, plu_programs, plu_windows,
-                     short_ago, time_ago)
-from .hotkeys import free_quick_slot, is_reserved, quick_accels, set_accels
+from .format import T
 from .images import img_b64, is_launcher_art
 from .menus import MenuHost
-from .store import Store
 from .toast import ToastHost
-from .view_state import ViewState
+from .. import __version__
+from ..controllers.scan import ScanController
+from ..controllers.sets import SetsController
+from ..controllers.triage import TriageController
+from ..core import layout as L
+from ..core import queries
+from ..core.hotkeys import free_quick_slot, is_reserved, quick_accels, set_accels
+from ..core.store import Store
+from ..core.text import (plu_apps, plu_hits, plu_programs, plu_windows,
+                         short_ago, time_ago)
+from ..core.view_state import ViewState
+from ..infra import log
+from ..platform import windows as W
 
 WINDOW_TTL = 2.0
 HEADER_SIDES_W = 320
@@ -339,7 +340,7 @@ class CenturioUI:
                             source_glyph=_source_glyph(app.get("source")))
 
     def _sync_search_box(self, matches: int = 0):
-        from .hotkeys import format_accel
+        from ..core.hotkeys import format_accel
         active = self.view.palette_open
         room = self._window_width() - HEADER_SIDES_W
         self.search_box.width = max(C.SEARCH_MIN_W, min(C.SEARCH_W, room))
@@ -2458,7 +2459,7 @@ class CenturioUI:
         self.set_setting("onboarded", True)
 
     def onboarding_items(self):
-        from . import discovery
+        from ..platform import discovery
         found = self.cached_discovery()
         if found is None:
             return []

@@ -5,12 +5,12 @@ import time
 
 import flet as ft
 
-from . import colors as C
-from . import layout as L
-from . import log
-from . import queries
-from . import windows as W
-from .format import plu_programs, plu_windows
+from ..core import layout as L
+from ..core import queries
+from ..core.text import plu_programs, plu_windows
+from ..infra import log
+from ..platform import windows as W
+from ..ui import colors as C
 
 
 class SetsController:
